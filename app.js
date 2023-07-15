@@ -4,11 +4,9 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const ejs = require('ejs');
 const mongoose = require('mongoose');
-const encrypt = require('mongoose-encryption');
-const md5 = require('md5');
+const bcrypt = require('bcrypt');
+const saltRounds = 10;
 
-
-console.log(process.env.SECRET)
 
 const app = express();
 
@@ -26,7 +24,6 @@ const userSchema = new mongoose.Schema({
 
 });
 
-//userSchema.plugin(encrypt, { secret:process.env.SECRET , encryptedFields: ['password'] });
 
 const User = mongoose.model("User", userSchema);
 
@@ -44,42 +41,44 @@ app.get('/register',function(req,res){
 })
 
 app.post('/register',function(req,res){
-    console.log(req.body.username)
-    console.log(req.body.password)
 
-    const newUser = new User({ 
-        username:req.body.username,
-        password:md5(req.body.password)
+    bcrypt.hash(req.body.password, saltRounds, function(err, hash) {
+
+        const newUser = new User({ 
+            username:req.body.username,
+            password:hash
+        });
+         newUser.save()
+            .then((rs)=>res.render('secrets'))
+            .catch((err)=>console.log(err))
+         ;
     });
-     newUser.save()
-        .then((rs)=>res.render('secrets'))
-        .catch((err)=>console.log(err))
-     ;
-
 
 })
  app.post("/login",function(req,res){
 
     const reqUsername = req.body.username
-    const reqPassword = md5(req.body.password)
+    const reqPassword = req.body.password
 
-    User.findOne({username:reqUsername})
-        .then((foundUser)=>{ 
-            console.log(foundUser)
-            if(foundUser){
-                console.log(foundUser.password)
-                if(foundUser.password === reqPassword ){
-                    res.render('secrets')
-                }
-                else{
-                    console.log("erreur de mot de passe")
-                }
-            }
-            else{
-                console.log("user non trouve")
-            }
-        })
-        .catch((err)=>console.log(err))
+
+     User.findOne({ username: reqUsername })
+         .then((foundUser) => {
+             if (foundUser) {                
+                 bcrypt.compare(reqPassword, foundUser.password, function (err, result) {
+                     if (result) {
+                         res.render('secrets')
+                     }
+                     if (err) {
+                         console.log(err)
+                     }
+                 });
+             }
+
+             else {
+                 console.log("user non trouve")
+             }
+         })
+         .catch((err) => console.log(err))
 
  })
 
