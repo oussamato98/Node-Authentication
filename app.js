@@ -37,9 +37,12 @@ const userSchema = new mongoose.Schema({
     username: String,
     password: String,
     googleId: String,
-    facebookId: String
+    facebookId: String,
+    secret : String
 
 });
+
+
 
 userSchema.plugin(passportLocalMongoose);
 userSchema.plugin(findOrCreate);
@@ -47,6 +50,7 @@ userSchema.plugin(findOrCreate);
 
 
 const User = mongoose.model("User", userSchema);
+
 
 
 
@@ -99,12 +103,10 @@ passport.use(new FacebookStrategy({
 ));
 
 
-app.get('/', function (req, res) {
-    res.render('home');
-})
 
 
 
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
 // Déclenche le processus d'authentification OAuth avec Google preconfigure dans la strategie , si l utilisateur s est bien authentifie et accepte d acceder a son scope: ['profile'] rediriger vers le callbackURL
@@ -116,6 +118,7 @@ app.get('/auth/facebook',
     passport.authenticate('facebook', { scope: ['public_profile'] }));
 
 
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
 
@@ -135,6 +138,14 @@ app.get('/auth/facebook/secrets',
         res.redirect('/secrets');
     });
 
+
+
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+app.get('/', function (req, res) {
+    res.render('home');
+})
+
 app.get('/login', function (req, res) {
     res.render('login');
 })
@@ -144,13 +155,12 @@ app.get('/register', function (req, res) {
 })
 
 app.get('/secrets', function (req, res) {
-    if (req.isAuthenticated()) {
-        res.render('secrets');
-    }
-    else {
-        res.redirect("/login")
-    }
+
+    User.find({"secret":{$ne:null}})
+    .then((foundUser)=> res.render('secrets',{usersWithSecrets:foundUser}))
+    .catch((err)=> console.log(err));
 })
+
 
 app.get('/logout', function (req, res) {
 
@@ -166,6 +176,27 @@ app.get('/logout', function (req, res) {
     });
 
 });
+
+app.get('/submit', function (req, res) {
+
+    if (req.isAuthenticated()) {
+        res.render('submit');
+    }
+    else {
+        res.redirect("/login")
+    }
+})
+
+app.post('/submit',function(req,res){
+
+   // console.log(req.user.id);
+
+    User.findByIdAndUpdate(req.user.id, { secret: req.body.secret }) 
+    .then((resultat)=>res.redirect("/secrets"))
+    .catch((err)=> console.log(err))
+    
+    
+})
 
 app.post('/register', function (req, res) {
 
